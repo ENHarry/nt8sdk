@@ -39,10 +39,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/nainatechllc/nt8-python-sdk"
-Repository = "https://github.com/nainatechllc/nt8-python-sdk"
-Documentation = "https://github.com/nainatechllc/nt8-python-sdk#readme"
-"Bug Tracker" = "https://github.com/nainatechllc/nt8-python-sdk/issues"
+Homepage = "https://www.nainatechcorp.com"
+Repository = "https://github.com/ENHarry/nt8sdk"
+Documentation = "https://github.com/ENHarry/nt8sdk#readme"
+"Bug Tracker" = "https://github.com/ENHarry/nt8sdk/issues"
 
 [tool.setuptools]
 package-dir = {"" = "."}
