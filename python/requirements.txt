@@ -1,0 +1,2 @@
+pywin32>=305
+pythonnet==3.0.3

@@ -1,0 +1,101 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.claude/
+
+# C#
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.dll
+*.pdb
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+logs/**
+
+# Bot folder (private - not part of SDK)
+bot/
+bot/**
+
+# Market data and cache
+market_data_cache/
+market_data_cache/**
+historical_data/
+historical_data/**
+
+# Numba cache files
+*.nbc
+*.nbi
+
+# Test files
+*_test*.py
+test_*.py
+comprehensive_test.py
+working_test.py
+
+# Scripts
+Uninstall-NT8-Complete.ps1
+nul
+
+# Env files
+.env
+**/.env
+
+# VS artifacts
+.vs/
+.vs/**
+Ninja8API/.vs/
+Ninja8API/.vs/**
+
+# Excel files with data
+*.xlsx
+
+# Originals backup folder
+originals/
+originals/**
+
+# Images
+*.png
+*.jpg
+
+# Pine scripts (private)
+pine/
+pine/**

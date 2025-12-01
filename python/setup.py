@@ -1,0 +1,42 @@
+from setuptools import setup, find_packages
+
+setup(
+    name="nt8sdk",
+    version="1.1.0",
+    description="High-performance Python SDK for NinjaTrader 8 with ATI Protocol Support",
+    long_description=open("README.md", encoding="utf-8").read(),
+    long_description_content_type="text/markdown",
+    author="Naina Tech Inc.",
+    author_email="support@nainatech.com",
+    url="https://github.com/nainatechllc/nt8-python-sdk",
+    packages=find_packages(exclude=["tests*", "examples*", "backtests*"]),
+    package_data={"nt8": ["py.typed"]},
+    install_requires=[],
+    extras_require={
+        "managed": ["pythonnet>=3.0.0"],
+        "dev": [
+            "pytest>=7.0.0",
+            "pytest-asyncio>=0.21.0",
+            "black>=23.0.0",
+            "mypy>=1.0.0",
+        ],
+    },
+    python_requires=">=3.8",
+    classifiers=[
+        "Development Status :: 5 - Production/Stable",
+        "Intended Audience :: Financial and Insurance Industry",
+        "Intended Audience :: Developers",
+        "Topic :: Office/Business :: Financial :: Investment",
+        "Topic :: Software Development :: Libraries :: Python Modules",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: Microsoft :: Windows",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Typing :: Typed",
+    ],
+    keywords=["ninjatrader", "trading", "algorithmic-trading", "futures", "stocks", "nt8", "sdk"],
+)

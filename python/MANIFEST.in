@@ -1,0 +1,10 @@
+include README.md
+include LICENSE
+include nt8/py.typed
+recursive-include nt8 *.py *.pyi
+recursive-exclude tests *
+recursive-exclude examples *
+recursive-exclude backtests *
+recursive-exclude * __pycache__
+recursive-exclude * *.pyc
+recursive-exclude * *.pyo

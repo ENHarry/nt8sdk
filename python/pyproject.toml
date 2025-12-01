@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nt8sdk"
+version = "1.1.0"
+description = "High-performance Python SDK for NinjaTrader 8 with ATI Protocol Support"
+authors = [{name = "Naina Tech Inc."}]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.8"
+keywords = ["ninjatrader", "trading", "algorithmic-trading", "futures", "stocks", "nt8", "sdk"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Intended Audience :: Developers",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Typing :: Typed",
+]
+dependencies = []
+
+[project.optional-dependencies]
+managed = ["pythonnet>=3.0.0"]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "mypy>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/nainatechllc/nt8-python-sdk"
+Repository = "https://github.com/nainatechllc/nt8-python-sdk"
+Documentation = "https://github.com/nainatechllc/nt8-python-sdk#readme"
+"Bug Tracker" = "https://github.com/nainatechllc/nt8-python-sdk/issues"
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["nt8*"]
+exclude = ["tests*", "examples*", "backtests*"]
+
+[tool.setuptools.package-data]
+nt8 = ["py.typed"]
+
+[tool.black]
+line-length = 100
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true

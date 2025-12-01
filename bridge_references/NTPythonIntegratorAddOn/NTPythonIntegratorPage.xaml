@@ -1,0 +1,62 @@
+﻿<t:NTTabPage	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+				xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+				xmlns:t="clr-namespace:NinjaTrader.Gui.Tools;assembly=NinjaTrader.Gui"          
+				xmlns:system="clr-namespace:System;assembly=mscorlib" 
+				xmlns:TradePerformance="clr-namespace:NinjaTrader.Gui.TradePerformance;assembly=NinjaTrader.Gui" 
+				xmlns:AccountData="clr-namespace:NinjaTrader.Gui.AccountData;assembly=NinjaTrader.Gui" 
+				xmlns:AtmStrategy="clr-namespace:NinjaTrader.Gui.NinjaScript.AtmStrategy;assembly=NinjaTrader.Gui"
+				x:Class="NTPythonIntegratorAddOn.NTPythonIntegratorPage">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="4*"/>
+            <RowDefinition Height="6*"/>
+        </Grid.RowDefinitions>
+
+        <!-- First row content -->
+        <!-- First row with 4 sub-rows -->
+        <Grid Grid.Row="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Content for each sub-row -->
+            <!-- First sub-row with Label, TextBlock, and Button for file selection -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="5,5,5,5">
+                <Label Content="Python DLL:" VerticalAlignment="Center" FontSize="12" Margin="5" Width="120"/>
+                <TextBox Name="SelectedPythonDLL" Text="{Binding Path=PythonDllFile, Mode=OneWay}"  VerticalAlignment="Center" FontSize="12" Width="250" TextWrapping="Wrap"/>
+                    <!--<Button Content="..." VerticalAlignment="Center" FontSize="16" Click="BrowseButton_Click" Margin="5"/> -->
+                <Button Content="..." VerticalAlignment="Center" FontSize="12" Margin="5" Width="50" Command="{Binding Path=SelectPythonDllCommand}"/>
+            </StackPanel>
+
+            <!-- Second sub-row with CheckBox and Label -->
+            <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="5,5,5,5">
+                <CheckBox Content="Use Virtual Environment?" IsChecked="{Binding Path=UsingVenv,Mode=TwoWay}" VerticalAlignment="Center" FontSize="12" Margin="10"/>
+                <!-- <Label Content="Use Virtual Environment?" VerticalAlignment="Center" FontSize="16" Margin="5"/> -->
+            </StackPanel>
+
+            <!-- Third sub-row with Label, TextBlock, and Button for folder selection -->
+            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="5,5,5,5">
+                <Label Content="Virtual Environment:" VerticalAlignment="Center" FontSize="12" Margin="5" Width="120" />
+                <TextBox Name="SelectedVenvPath" Text="{Binding Path=PathToVenv}" VerticalAlignment="Center" FontSize="12" Width="250" TextWrapping="Wrap" IsEnabled="{Binding Path=UsingVenv}"/>
+                <!-- <Button Content="..." VerticalAlignment="Center" FontSize="16" Click="BrowseFolderButton_Click" Margin="5"/> -->
+                <Button Content="..." VerticalAlignment="Center" FontSize="12" Margin="5" Width="50" IsEnabled="{Binding Path=UsingVenv}" Command="{Binding Path=SelectPathToVenvCommand}"/>
+            </StackPanel>
+
+            <!-- Fourth sub-row with two Buttons -->
+            <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="5,5,5,5">
+                <Button Content="Initialize" VerticalAlignment="Center" FontSize="12" Margin="5" Command="{Binding Path=InitalizePythonCommand}"/>
+                <Button Content="Shutdown" VerticalAlignment="Center" FontSize="12" Margin="5" Command="{Binding Path=ShutdownPythonCommand}"/>
+            </StackPanel>
+
+        </Grid>
+
+        <!-- Second row content -->
+        <Grid Grid.Row="1">
+            <!-- Add your content here -->
+            <TextBox Name="PythonConfig" Text="{Binding Path=PythonConfig, Mode=OneWay}" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" FontSize="12" TextWrapping="Wrap" Margin="2,0,2,2"/>
+        </Grid>
+    </Grid>
+</t:NTTabPage>
