@@ -1,0 +1,191 @@
+# PropTrader v3 Trading Configuration
+# =====================================
+
+# Pattern Recognition Settings
+pattern_recognition:
+  # Enable/disable pattern-based trade blocking
+  enable_override: true
+  
+  # Override mode:
+  # - "strict": Pattern always overrides signals
+  # - "tiered": Consider pattern confidence AND signal strength
+  # - "advisory": Log pattern but don't block trades
+  override_mode: "tiered"
+  
+  # Alert if same pattern detected N times consecutively
+  stuck_detection_threshold: 50
+  
+  # Minimum pattern confidence (%) to block trade
+  min_confidence_for_override: 85
+  
+  # Tiered mode thresholds
+  tiered_thresholds:
+    # If pattern confidence > 90% and ADX < 30, block trade
+    high_confidence_adx_max: 30
+    # If pattern confidence > 80% and ADX < 40, block trade
+    medium_confidence_adx_max: 40
+    # If ADX > 50, allow trade regardless of pattern
+    strong_trend_adx: 50
+
+# Market Regime Settings
+market_regime:
+  # Enable ranging market trading strategy
+  enable_ranging_trading: true
+  
+  # ADX threshold to classify as ranging (vs choppy)
+  adx_ranging_threshold: 20
+  
+  # ADX threshold to classify as trending
+  adx_trending_threshold: 25
+  
+  # Minimum range quality score (0-1) to trade ranging strategy
+  range_quality_threshold: 0.7
+  
+  # Use ML-based regime detection
+  use_ml_regime_detection: true
+  ml_regime_min_confidence: 0.7  # Fall back to ADX if ML < threshold
+
+# Ranging Signal Settings
+ranging_signals:
+  # Bollinger Bands parameters
+  bollinger_bands:
+    period: 20
+    std_dev: 2.0
+    oversold_threshold: 0.1   # %B value (0 = lower band)
+    overbought_threshold: 0.9  # %B value (1 = upper band)
+  
+  # Stochastic Oscillator parameters
+  stochastic:
+    k_period: 14
+    d_period: 3
+    oversold: 20
+    overbought: 80
+  
+  # RSI parameters
+  rsi:
+    period: 14
+    oversold: 30
+    overbought: 70
+  
+  # Range detection parameters
+  range_detection:
+    lookback_bars: 50
+    min_width_pct: 0.5  # Minimum range width as % of price
+    quality_threshold: 0.7
+    min_touches: 2  # Minimum touches at support/resistance
+  
+  # Position sizing for ranging trades (relative to trending)
+  position_multiplier: 0.8
+  
+  # Stop/Target ATR multipliers
+  atr_multiplier_stop: 1.5
+  atr_multiplier_target: 1.0  # Tighter targets in ranging
+
+# Session Settings
+sessions:
+  # Enable session-based filtering and adjustments
+  enable_session_filtering: true
+  
+  # Timezone for session calculations
+  timezone: "America/Chicago"
+  
+  # Allow trading during off-hours (low liquidity)
+  allow_off_hours_trading: false
+  
+  # Minutes before session change to warn
+  warn_before_transition: 15
+  
+  # Risk adjustments per session
+  session_risk:
+    asia:
+      position_multiplier: 0.7
+      spread_tolerance: 1.5
+    europe:
+      position_multiplier: 0.9
+      spread_tolerance: 1.0
+    us:
+      position_multiplier: 1.0
+      spread_tolerance: 1.0
+    overlap:
+      position_multiplier: 1.0
+      spread_tolerance: 0.8  # Expect tightest spreads
+    off_hours:
+      position_multiplier: 0.5
+      spread_tolerance: 2.0
+
+# HTF (Higher Timeframe) Filter Settings
+htf_filter:
+  # Enable higher timeframe trend filter
+  enabled: true
+  
+  # Primary HTF timeframe to use
+  primary_timeframe: "5m"
+  
+  # Fallback if primary not available
+  fallback_timeframe: "1m"
+  
+  # Minimum bars required for HTF analysis
+  min_bars: 15
+  
+  # Log warning throttle (seconds between warnings)
+  warning_throttle_seconds: 300
+
+# Signal Generation Settings
+signal_generation:
+  # Minimum signal quality grade to trade
+  min_grade: "MEDIUM"  # "LOW", "MEDIUM", "HIGH"
+  
+  # Require MTF (multi-timeframe) confirmation
+  require_mtf_confirmation: true
+  
+  # Minimum MTF alignment score (0-1)
+  min_mtf_alignment: 0.6
+  
+  # Enable signal weighting via Random Forest
+  use_rf_weighting: true
+  rf_min_win_probability: 0.52
+
+# Risk Management
+risk_management:
+  # Maximum position size (contracts)
+  max_position_size: 10
+  
+  # Maximum daily loss (in account currency)
+  max_daily_loss: 5000
+  
+  # Maximum drawdown percentage before stopping
+  max_drawdown_pct: 15
+  
+  # Use session-aware risk adjustments
+  use_session_risk: true
+  
+  # Use Monte Carlo optimized position sizing
+  use_mc_sizing: true
+
+# Logging & Monitoring
+logging:
+  # Log level: DEBUG, INFO, WARNING, ERROR
+  level: "INFO"
+  
+  # Log signal details
+  log_signals: true
+  
+  # Log regime changes
+  log_regime_changes: true
+  
+  # Log session transitions
+  log_session_changes: true
+  
+  # Log ML predictions
+  log_ml_predictions: true
+
+# Debug Settings
+debug:
+  # Enable debug mode (more verbose logging)
+  enabled: false
+  
+  # Save signal history for analysis
+  save_signal_history: true
+  
+  # Save regime history
+  save_regime_history: true

@@ -97,21 +97,18 @@ class NT8ManagedClient:
         return self.connect()
 
     def tear_down(self) -> None:
-        teardown = getattr(self._client, "TearDown", None)
-        if not callable(teardown):
-            teardown = getattr(self._client, "TearDownConnection", None)
-
-        warn_text = "NT8 tear_down not supported but continuing shutdown"
-        if callable(teardown):
-            try:
-                teardown()
-            except TypeError as exc:  # pragma: no cover - defensive shutdown
-                logger.warning(warn_text)
-                logger.debug("NT8 DLL TearDown TypeError: %s", exc)
-            except Exception as exc:  # pragma: no cover - defensive shutdown
-                logger.debug("NT8 DLL TearDown raised %s", exc)
-        else:
-            logger.warning(warn_text)
+        """Disconnect from NinjaTrader. Returns 0 on success, -1 on error."""
+        try:
+            result = self._client.TearDown()
+            if result == 0:
+                logger.info("NT8 DLL TearDown successful")
+            else:
+                logger.warning("NT8 DLL TearDown returned code: %s", result)
+            self._connected = False
+        except AttributeError:
+            logger.debug("NT8 DLL TearDown method not available - connection may already be closed")
+        except Exception as exc:  # pragma: no cover - defensive shutdown
+            logger.debug("NT8 DLL TearDown raised %s: %s", type(exc).__name__, exc)
 
         self._connected = False
         self._subscriptions.clear()
@@ -313,9 +310,9 @@ class NT8ManagedClient:
 
         snapshot = self._capture_market_data_fields(instrument)
         fields: Dict[int, Any] = snapshot.get("fields", {})
-        logger.info("Managed market data fields for %s: %s", instrument, fields)
+        logger.debug("Managed market data fields for %s: %s", instrument, fields)
         if snapshot.get("raw_payload") is not None:
-            logger.info("Managed raw MarketData payload for %s: %s", instrument, snapshot["raw_payload"])
+            logger.debug("Managed raw MarketData payload for %s: %s", instrument, snapshot["raw_payload"])
 
         last = float(fields.get(0, 0.0) or 0.0)
         bid = float(fields.get(1, 0.0) or 0.0)

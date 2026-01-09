@@ -6,9 +6,13 @@ Provides position sizing, risk controls, and exposure management
 
 from dataclasses import dataclass, field
 from datetime import datetime, time as datetime_time
-from typing import Optional, Dict, List, Callable
+from typing import Optional, Dict, List, Callable, TYPE_CHECKING
 from enum import Enum
 import math
+
+if TYPE_CHECKING:
+    # Avoid circular imports
+    from bot_v3.session_manager import SessionManager
 
 
 class RiskLevel(str, Enum):
@@ -413,6 +417,106 @@ class RiskManager:
         """Trigger risk violation alert"""
         if self.on_risk_violation:
             self.on_risk_violation(message, level)
+
+    # =====================================================================
+    # SESSION-AWARE RISK MANAGEMENT METHODS
+    # =====================================================================
+    
+    def set_session_manager(self, session_manager: "SessionManager"):
+        """
+        Set the session manager for session-aware risk checks
+        
+        Args:
+            session_manager: SessionManager instance from bot_v3
+        """
+        self._session_manager = session_manager
+    
+    def can_trade_in_session(self, instrument: str, quantity: int) -> tuple[bool, str]:
+        """
+        Enhanced trade check that includes session-aware restrictions
+        
+        Args:
+            instrument: Trading instrument
+            quantity: Proposed quantity
+            
+        Returns:
+            Tuple of (allowed, reason)
+        """
+        # First check standard risk limits
+        can_trade, reason = self.can_trade(instrument, quantity)
+        if not can_trade:
+            return can_trade, reason
+        
+        # Check session-specific restrictions if session manager is available
+        if hasattr(self, '_session_manager') and self._session_manager is not None:
+            session_manager = self._session_manager
+            
+            # Get current session
+            current_session = session_manager.get_current_session()
+            
+            # Check if instrument is recommended for this session
+            recommended_instruments = session_manager.get_recommended_instruments()
+            if instrument not in recommended_instruments:
+                # Allow but with warning - not a hard restriction
+                pass
+            
+            # Check for session transitions (high volatility periods)
+            if session_manager.is_session_transition():
+                # Reduce position size during transitions
+                max_transition_contracts = max(1, self.risk_limits.max_contracts_per_trade // 2)
+                if quantity > max_transition_contracts:
+                    return False, f"Session transition - max {max_transition_contracts} contracts allowed"
+            
+            # Apply session-specific risk multiplier
+            risk_adjustment = session_manager.get_session_risk_adjustment()
+            if risk_adjustment < 0.5:
+                # Very low risk session - restrict trading
+                return False, f"Current session ({current_session.value if current_session else 'Unknown'}) has low activity for this instrument"
+        
+        return True, "Trade allowed (session-checked)"
+    
+    def get_session_adjusted_position_size(self, base_quantity: int) -> int:
+        """
+        Adjust position size based on current session
+        
+        Args:
+            base_quantity: Base position size calculated by PositionSizer
+            
+        Returns:
+            Adjusted position size
+        """
+        if not hasattr(self, '_session_manager') or self._session_manager is None:
+            return base_quantity
+        
+        risk_adjustment = self._session_manager.get_session_risk_adjustment()
+        adjusted = int(base_quantity * risk_adjustment)
+        
+        # Always allow at least 1 contract if base was positive
+        return max(1, adjusted) if base_quantity > 0 else 0
+    
+    def get_session_risk_metrics(self) -> dict:
+        """Get risk metrics including session information"""
+        base_metrics = self.get_risk_metrics()
+        
+        if hasattr(self, '_session_manager') and self._session_manager is not None:
+            session_manager = self._session_manager
+            current_session = session_manager.get_current_session()
+            
+            base_metrics.update({
+                "current_session": current_session.value if current_session else "Unknown",
+                "session_risk_adjustment": session_manager.get_session_risk_adjustment(),
+                "is_session_transition": session_manager.is_session_transition(),
+                "recommended_instruments": session_manager.get_recommended_instruments(),
+            })
+        else:
+            base_metrics.update({
+                "current_session": "No session manager",
+                "session_risk_adjustment": 1.0,
+                "is_session_transition": False,
+                "recommended_instruments": [],
+            })
+        
+        return base_metrics
 
     def __str__(self) -> str:
         """String representation of risk status"""

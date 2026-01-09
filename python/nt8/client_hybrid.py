@@ -145,10 +145,74 @@ class NT8HybridClient:
         strategy_id: str = "",
         account: str | None = None,
     ) -> Dict[str, Any] | str:
-        """Place order via DLL client with file-based fallback."""
+        """Place order via DLL client with file-based fallback.
+        
+        IMPORTANT: STOP and STOP_LIMIT orders use file-based client directly
+        because the DLL ATI Command function doesn't properly handle stop_price.
+        
+        IMPORTANT: OCO orders use file-based client to ensure all OCO-linked orders
+        go through the same adapter (NT8PythonAdapter_FileBased.cs) which properly
+        handles OCO linking via Account.CreateOrder().
+        """
         # Support both tif and time_in_force, and both oco and oco_id
         effective_tif = tif or time_in_force
         effective_oco = oco or oco_id
+        
+        # Normalize order type for comparison
+        order_type_upper = order_type.upper() if isinstance(order_type, str) else str(order_type).upper()
+        
+        # Normalize order type for ATI: STOP_MARKET -> STOP, STOP_LIMIT -> STOPLIMIT
+        ati_order_type = order_type_upper
+        if ati_order_type in ("STOP_MARKET", "STOPMKT"):
+            ati_order_type = "STOP"
+        elif ati_order_type == "STOP_LIMIT":
+            ati_order_type = "STOPLIMIT"
+        
+        # OCO orders MUST use file-based client to ensure proper OCO linking
+        # The DLL ATI (NinjaTrader.Client.dll) and file-based adapter use different pathways
+        # OCO linking only works when all linked orders go through the same adapter
+        if effective_oco:
+            logger.debug(f"Using file-based client for {order_type_upper} order with OCO: {effective_oco}")
+            result = self.place_order_file(
+                instrument=instrument,
+                action=action,
+                quantity=quantity,
+                order_type=ati_order_type,
+                limit_price=limit_price,
+                stop_price=stop_price,
+                tif=effective_tif,
+                oco=effective_oco,
+                order_id=order_id,
+                strategy=strategy,
+                account=account or self.account,
+            )
+            # Convert file-based response to dict format for consistency
+            if isinstance(result, str):
+                return {"order_id": result, "strategy_id": ""}
+            return result
+        
+        # STOP orders must use file-based client - DLL ATI doesn't handle stop_price correctly
+        if order_type_upper in ("STOP", "STOP_MARKET", "STOPMKT", "STOP_LIMIT", "STOPLMT"):
+            logger.debug(f"Using file-based client for {order_type_upper} order (DLL ATI stop_price issue)")
+            result = self.place_order_file(
+                instrument=instrument,
+                action=action,
+                quantity=quantity,
+                order_type=ati_order_type,  # Already normalized above
+                limit_price=limit_price,
+                stop_price=stop_price,
+                tif=effective_tif,
+                oco=effective_oco,
+                order_id=order_id,
+                strategy=strategy,
+                account=account or self.account,
+            )
+            # Convert file-based response to dict format for consistency
+            if isinstance(result, str):
+                return {"order_id": result, "strategy_id": ""}
+            return result
+        
+        # MARKET and LIMIT orders use DLL client (faster)
         try:
             return self._dll_client.place_order(
                 instrument=instrument,
@@ -203,8 +267,8 @@ class NT8HybridClient:
             order_type=order_type,
             limit_price=limit_price,
             stop_price=stop_price,
-            tif=tif,
-            oco=oco,
+            time_in_force=tif,  # file-based client uses time_in_force
+            oco_id=oco,  # file-based client uses oco_id
             order_id=order_id,
             strategy=strategy,
         )
@@ -215,28 +279,15 @@ class NT8HybridClient:
         quantity: int | None = None,
         limit_price: float | None = None,
         stop_price: float | None = None,
+        oco_id: str = "",
     ) -> bool:
-        """Modify order via DLL client with file-based fallback."""
+        """Modify order via FileBased client with DLL as fallback."""
         try:
-            return self._dll_client.modify_order(order_id, quantity, limit_price, stop_price)
+            return self._file_client.modify_order(order_id, quantity, limit_price, stop_price, oco_id)
         except Exception as e:
-            logger.warning(f"DLL modify_order failed: {e}, using file-based fallback")
-            return self.modify_order_file(order_id, quantity, limit_price, stop_price)
+            logger.warning(f"File-based modify_order failed: {e}, using DLL fallback")
+            return self._dll_client.modify_order(order_id, quantity, limit_price, stop_price, oco_id)
 
-    def modify_order_file(
-        self,
-        order_id: str,
-        quantity: int | None = None,
-        limit_price: float | None = None,
-        stop_price: float | None = None,
-    ) -> bool:
-        """Modify order via file-based client directly."""
-        return self._file_client.modify_order(
-            order_id=order_id,
-            quantity=quantity,
-            limit_price=limit_price,
-            stop_price=stop_price,
-        )
 
     def get_order_status(self, order_id: str) -> str:
         """Get order status via DLL client."""
@@ -340,21 +391,13 @@ class NT8HybridClient:
         """Close position via file-based client directly."""
         return self._file_client.close_position(account, instrument)
 
-    def flatten_everything(self, account: str | None = None) -> bool:
+    def flatten_everything(self) -> bool:
         """Flatten all positions via file-based client with DLL fallback."""
         try:
             return self._file_client.flatten_everything()
         except Exception as e:
             logger.warning(f"File-based flatten_everything failed: {e}, using DLL fallback")
-            return self.flatten_everything_dll(account)
-
-    def flatten_everything_dll(self, account: str | None = None) -> bool:
-        """Flatten all positions via DLL client directly."""
-        return self._dll_client.flatten_everything(account)
-
-    def flatten_everything_file(self) -> bool:
-        """Flatten all positions via file-based client directly."""
-        return self._file_client.flatten_everything()
+            return self._dll_client.flatten_everything()
 
     def close_strategy(self, strategy_id: str) -> bool:
         """Close strategy via DLL client."""
@@ -374,7 +417,7 @@ class NT8HybridClient:
         strategy: str = "",
         strategy_id: str = "",
         account: str | None = None,
-    ) -> Dict[str, Any]:
+    ) -> Dict[str, Any] | str:
         """Reverse position via DLL client with file-based fallback."""
         # Try DLL client first
         if self._dll_client:
@@ -386,8 +429,8 @@ class NT8HybridClient:
                     order_type=order_type,
                     limit_price=limit_price,
                     stop_price=stop_price,
-                    tif=tif,
-                    oco=oco,
+                    time_in_force=tif,
+                    oco_id=oco,
                     order_id=order_id,
                     strategy=strategy,
                     strategy_id=strategy_id,
@@ -397,7 +440,7 @@ class NT8HybridClient:
                 pass  # Fall through to file-based
 
         # Fall back to file-based client
-        acct = account or self._default_account
+        acct = account or self.account
         result_order_id = self._file_client.reverse_position(
             account=acct,
             instrument=instrument,
@@ -414,37 +457,7 @@ class NT8HybridClient:
         )
         return {"order_id": result_order_id, "success": True}
 
-    def reverse_position_file(
-        self,
-        instrument: str,
-        action: str,
-        quantity: int,
-        order_type: str = "MARKET",
-        limit_price: float = 0.0,
-        stop_price: float = 0.0,
-        tif: str = "DAY",
-        oco: str = "",
-        order_id: str = "",
-        strategy: str = "",
-        strategy_id: str = "",
-        account: str | None = None,
-    ) -> str:
-        """Reverse position via file-based client directly."""
-        acct = account or self._default_account
-        return self._file_client.reverse_position(
-            account=acct,
-            instrument=instrument,
-            action=action,
-            quantity=quantity,
-            order_type=order_type,
-            limit_price=limit_price,
-            stop_price=stop_price,
-            time_in_force=tif,
-            oco_id=oco,
-            order_id=order_id,
-            strategy=strategy,
-            strategy_id=strategy_id,
-        )
+    
 
     # ------------------------------------------------------------------
     # Account Info - File-based Primary with DLL fallback
@@ -577,6 +590,13 @@ class NT8HybridClient:
     def ping(self) -> str:
         """Ping via file-based client."""
         return self._file_client.ping()
+
+    def _check_data_health(self) -> bool:
+        """Check if data connection is healthy. Returns True if connected."""
+        try:
+            return self._connected and self._dll_client._connected
+        except Exception:
+            return False
 
     # ------------------------------------------------------------------
     # Direct client access for advanced use

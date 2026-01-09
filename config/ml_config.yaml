@@ -1,0 +1,237 @@
+# PropTrader v3 Machine Learning Configuration
+# =============================================
+
+# Monte Carlo Simulation Settings
+monte_carlo:
+  # Enable Monte Carlo analysis
+  enabled: true
+  
+  # Number of simulation paths
+  n_simulations: 10000
+  
+  # Number of trades per simulation
+  n_trades_per_simulation: 100
+  
+  # Confidence levels for VaR calculation
+  confidence_levels: [0.95, 0.99]
+  
+  # Risk targets
+  target_max_drawdown: 0.15  # 15% max drawdown target
+  target_sharpe_ratio: 1.5
+  
+  # Position sizing
+  min_position_size: 0.01  # 1% minimum
+  max_position_size: 0.25  # 25% maximum
+  
+  # How often to re-run simulations
+  optimization_frequency: "daily"  # "daily", "weekly", "monthly"
+  
+  # Kelly Criterion
+  use_kelly: false
+  kelly_fraction_cap: 0.25  # Cap Kelly at 25%
+
+# PCA on Indicators Settings
+indicator_pca:
+  # Enable PCA analysis
+  enabled: true
+  
+  # Number of principal components
+  n_components: 5
+  
+  # Fit separate PCA per regime
+  regime_specific: true
+  
+  # How often to retrain PCA
+  retrain_frequency: "weekly"
+  
+  # Minimum samples to fit PCA
+  min_samples: 50
+  
+  # Target cumulative variance explained
+  variance_threshold: 0.95
+  
+  # Use PCA-transformed indicators for signals
+  use_for_signals: true
+  
+  # Indicators to include in PCA
+  indicators:
+    - supertrend
+    - obos
+    - trending
+    - adx
+    - plus_di
+    - minus_di
+    - rsi
+    - macd
+    - bb_pct_b
+    - stoch_k
+  
+  # Model persistence
+  save_models: true
+  model_path: "ml_models/pca/"
+
+# Random Forest Signal Weighting Settings
+signal_weighting_rf:
+  # Enable RF signal weighting
+  enabled: true
+  
+  # Model parameters
+  n_estimators: 200
+  max_depth: 10
+  min_samples_split: 10
+  
+  # Minimum win probability to take trade
+  min_win_probability: 0.52
+  
+  # Model persistence
+  save_models: true
+  model_path: "ml_models/signal_rf/"
+  
+  # Retraining schedule
+  retrain_frequency: "weekly"
+  min_training_samples: 100
+  
+  # Feature engineering options
+  include_time_features: true
+  include_pattern_confidence: true
+  include_recent_performance: true
+  include_indicator_alignment: true
+
+# ML-Based Regime Detection Settings
+regime_detection_ml:
+  # Enable ML regime detection
+  enabled: true
+  
+  # Detection method: "logistic", "hmm", "ensemble"
+  method: "ensemble"
+  
+  # Logistic Regression settings
+  logistic:
+    enabled: true
+    max_iter: 1000
+    class_weight: "balanced"
+  
+  # Hidden Markov Model settings
+  hmm:
+    enabled: true
+    n_states: 4  # CHOPPY, RANGING, TRANSITION, TRENDING
+    covariance_type: "full"
+    n_iter: 1000
+  
+  # MCMC for Bayesian HMM (experimental)
+  mcmc:
+    enabled: false  # Slower but more robust
+    n_samples: 5000
+    burn_in: 1000
+  
+  # Ensemble settings
+  ensemble:
+    # Fall back to ADX if ML confidence < threshold
+    min_confidence: 0.7
+    # Weight predictions by confidence
+    weight_by_confidence: true
+  
+  # Model persistence
+  save_models: true
+  model_path: "ml_models/regime/"
+  
+  # Retraining schedule
+  retrain_frequency: "monthly"
+  min_training_samples: 200
+
+# Data Collection for ML Training
+data_collection:
+  # Enable data collection
+  enabled: true
+  
+  # Where to save data
+  save_path: "ml_data/"
+  
+  # What data to collect
+  collect_signals: true
+  collect_trades: true
+  collect_indicators: true
+  collect_regime_labels: true
+  
+  # Collection frequency
+  save_frequency: "hourly"  # "realtime", "hourly", "daily"
+  
+  # Data retention
+  max_age_days: 365  # Keep 1 year of data
+  
+  # Include in collection
+  include_timestamp: true
+  include_session: true
+  include_price_data: true
+
+# Model Training Schedule
+training_schedule:
+  # Enable automatic retraining
+  auto_retrain: true
+  
+  # When to retrain (cron-like schedule)
+  # Run at 6 AM CT on Sunday
+  retrain_schedule: "0 6 * * 0"
+  
+  # Minimum new samples before retraining
+  min_new_samples: 50
+  
+  # Validate models after training
+  validate_after_training: true
+  
+  # Backup models before retraining
+  backup_before_retrain: true
+  backup_path: "ml_models/backups/"
+
+# Feature Engineering
+feature_engineering:
+  # Create lagged features
+  create_lags: true
+  lag_periods: [1, 3, 5, 10]
+  
+  # Create rolling features
+  create_rolling: true
+  rolling_windows: [5, 10, 20]
+  
+  # Normalize features
+  normalize: true
+  normalization_method: "standard"  # "standard", "minmax", "robust"
+  
+  # Handle missing values
+  handle_missing: "fill_forward"  # "drop", "fill_forward", "fill_mean"
+
+# Model Evaluation
+evaluation:
+  # Test set size
+  test_size: 0.2
+  
+  # Cross-validation folds
+  cv_folds: 5
+  
+  # Metrics to track
+  metrics:
+    - accuracy
+    - precision
+    - recall
+    - f1
+    - auc_roc
+  
+  # Generate evaluation reports
+  generate_reports: true
+  report_path: "ml_reports/"
+
+# Logging for ML
+ml_logging:
+  # Log training progress
+  log_training: true
+  
+  # Log predictions
+  log_predictions: true
+  
+  # Log feature importances
+  log_feature_importances: true
+  
+  # MLflow integration (optional)
+  use_mlflow: false
+  mlflow_tracking_uri: null
+  mlflow_experiment_name: "prop_trader_v3"

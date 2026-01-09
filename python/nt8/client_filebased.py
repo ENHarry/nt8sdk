@@ -283,8 +283,20 @@ class NT8Client:
 
     def cancel_order(self, order_id: str) -> bool:
         """Cancel an order by ID."""
+        if not order_id:
+            raise ValueError("order_id is required for cancel_order")
+
+        logger.info(f"🔍 File-based client cancelling order: {order_id}")
+        logger.info(f"🔍 Order ID type: {type(order_id)}, length: {len(order_id)}")
+
         command = self._format_command("CANCEL", "", "", "", "", "", "", "", "", "", order_id)
+        logger.info(f"🔍 Cancel command formatted: {repr(command)}")
+        logger.info(f"🔍 Command fields: {command.split(';')}")
+        logger.info(f"🔍 Field 10 (order_id): '{command.split(';')[10]}'")
+
         response = self.send_command(command)
+        logger.info(f"🔍 Cancel response: {repr(response)}")
+
         if response.strip().startswith("ERROR"):
             raise RuntimeError(f"Cancel error: {response}")
         return True
@@ -295,6 +307,7 @@ class NT8Client:
         quantity: Optional[int] = None,
         limit_price: Optional[float] = None,
         stop_price: Optional[float] = None,
+        oco_id: str = "",
     ) -> bool:
         """Modify an existing order."""
         # ATI Format: CHANGE;;;;<QUANTITY>;;<LIMIT PRICE>;<STOP PRICE>;;;<ORDER ID>;;
@@ -308,7 +321,7 @@ class NT8Client:
             limit_price if limit_price is not None else "",
             stop_price if stop_price is not None else "",
             "",  # time_in_force
-            "",  # oco_id
+            oco_id,  # oco_id
             order_id,
             "",  # strategy
             ""   # strategy_id
@@ -501,7 +514,7 @@ class NT8Client:
         normalized_level = (level or "L1").strip().upper()
         response = self.send_command(self._format_command("GET_MARKET_DATA", instrument, normalized_level))
         
-        logger.info("print out of market data response: %s", response)
+        logger.debug("print out of market data response: %s", response)
         
         parts = response.strip().split("|")
 
@@ -514,7 +527,7 @@ class NT8Client:
             reported_level = payload[0]
             payload = payload[1:]
 
-        logger.info("print out of market data payload: %s", payload)
+        logger.debug("print out of market data payload: %s", payload)
 
         if len(payload) < 3:
             raise RuntimeError(f"Invalid market data format: {response}")

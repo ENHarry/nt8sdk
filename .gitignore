@@ -99,3 +99,6 @@ originals/**
 # Pine scripts (private)
 pine/
 pine/**
+
+
+bot**

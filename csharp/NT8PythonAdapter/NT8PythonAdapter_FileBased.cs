@@ -509,6 +509,8 @@ namespace NinjaTrader.NinjaScript.AddOns
                 double limitPrice = parts.Length > 6 && !string.IsNullOrEmpty(parts[6]) ? double.Parse(parts[6].Trim()) : 0;
                 double stopPrice = parts.Length > 7 && !string.IsNullOrEmpty(parts[7]) ? double.Parse(parts[7].Trim()) : 0;
                 string tif = parts.Length > 8 ? parts[8].Trim().ToUpper() : "DAY";
+                // OCO ID at position 9 - links orders together so when one fills/cancels, the others are cancelled
+                string ocoId = parts.Length > 9 ? parts[9].Trim() : string.Empty;
                 string requestedOrderId = parts.Length > 10 ? parts[10].Trim() : string.Empty;
                 string strategyId = parts.Length > 12 ? parts[12].Trim() : string.Empty;
                 string userTag = !string.IsNullOrEmpty(requestedOrderId) ? requestedOrderId : strategyId;
@@ -531,26 +533,33 @@ namespace NinjaTrader.NinjaScript.AddOns
 
                 string normalizedOrderType = orderTypeStr.Replace("_", string.Empty);
 
+                // Log OCO ID if provided
+                if (!string.IsNullOrEmpty(ocoId))
+                {
+                    Print($"OCO order: {adapterOrderId} linked to OCO group: {ocoId}");
+                }
+
                 // Determine order type and submit
+                // Pass ocoId to CreateOrder (8th parameter) to link orders in OCO group
                 Order order = null;
                 if (normalizedOrderType == "MARKET")
                 {
-                    order = tradingAccount.CreateOrder(instr, action, OrderType.Market, TimeInForce.Day, quantity, 0, 0, string.Empty, adapterOrderId, null);
+                    order = tradingAccount.CreateOrder(instr, action, OrderType.Market, TimeInForce.Day, quantity, 0, 0, ocoId, adapterOrderId, null);
                 }
                 else if (normalizedOrderType == "LIMIT")
                 {
                     if (limitPrice <= 0) return "ERROR|Limit price required for LIMIT orders";
-                    order = tradingAccount.CreateOrder(instr, action, OrderType.Limit, TimeInForce.Day, quantity, limitPrice, 0, string.Empty, adapterOrderId, null);
+                    order = tradingAccount.CreateOrder(instr, action, OrderType.Limit, TimeInForce.Day, quantity, limitPrice, 0, ocoId, adapterOrderId, null);
                 }
                 else if (normalizedOrderType == "STOP" || normalizedOrderType == "STOPMARKET")
                 {
                     if (stopPrice <= 0) return "ERROR|Stop price required for STOP orders";
-                    order = tradingAccount.CreateOrder(instr, action, OrderType.StopMarket, TimeInForce.Day, quantity, 0, stopPrice, string.Empty, adapterOrderId, null);
+                    order = tradingAccount.CreateOrder(instr, action, OrderType.StopMarket, TimeInForce.Day, quantity, 0, stopPrice, ocoId, adapterOrderId, null);
                 }
                 else if (normalizedOrderType == "STOPLIMIT")
                 {
                     if (limitPrice <= 0 || stopPrice <= 0) return "ERROR|Limit and stop prices required for STOPLIMIT orders";
-                    order = tradingAccount.CreateOrder(instr, action, OrderType.StopLimit, TimeInForce.Day, quantity, limitPrice, stopPrice, string.Empty, adapterOrderId, null);
+                    order = tradingAccount.CreateOrder(instr, action, OrderType.StopLimit, TimeInForce.Day, quantity, limitPrice, stopPrice, ocoId, adapterOrderId, null);
                 }
                 else
                 {
@@ -955,22 +964,33 @@ namespace NinjaTrader.NinjaScript.AddOns
                 Order order = tradingAccount.Orders.FirstOrDefault(o => string.Equals(GetClientOrderKey(o), adapterOrderId, StringComparison.OrdinalIgnoreCase));
                 if (order == null) return $"ERROR|Order not found: {suppliedId}";
 
-                // Change order - Note: NT8 Change method signature varies, use simple approach
-                tradingAccount.Cancel(new[] { order });
-                
-                // Recreate with new parameters
+                // Check if order is in a modifiable state
+                if (order.OrderState != OrderState.Working && order.OrderState != OrderState.Accepted && order.OrderState != OrderState.Submitted)
+                {
+                    return $"ERROR|Order not modifiable (state: {order.OrderState})";
+                }
+
+                // Calculate new values (use existing if not provided)
                 int newQty = quantity > 0 ? quantity : order.Quantity;
                 double newLimit = limitPrice > 0 ? limitPrice : order.LimitPrice;
                 double newStop = stopPrice > 0 ? stopPrice : order.StopPrice;
 
-                Order newOrder = tradingAccount.CreateOrder(order.Instrument, order.OrderAction, order.OrderType, TimeInForce.Day, newQty, newLimit, newStop, string.Empty, adapterOrderId, null);
+                // Store OCO info to preserve relationship
+                string originalOco = order.Oco ?? string.Empty;
+                
+                // Cancel existing order
+                tradingAccount.Cancel(new[] { order });
+                
+                // Recreate with same OCO to preserve relationship
+                // Using the same OCO ID links the new order with any other orders sharing that OCO
+                Order newOrder = tradingAccount.CreateOrder(order.Instrument, order.OrderAction, order.OrderType, TimeInForce.Day, newQty, newLimit, newStop, originalOco, adapterOrderId, null);
                 tradingAccount.Submit(new[] { newOrder });
                 AssociateOrderWithClientId(newOrder, adapterOrderId);
                 string existingTag = GetUserTagForOrderId(adapterOrderId);
                 if (!string.IsNullOrEmpty(existingTag))
                     RegisterUserTag(adapterOrderId, existingTag);
                 
-                Print($"Order changed: {adapterOrderId}");
+                Print($"Order changed: {adapterOrderId} qty={newQty} limit={newLimit} stop={newStop} oco={originalOco}");
                 return $"OK|Order changed: {adapterOrderId}";
             }
             catch (Exception ex)
