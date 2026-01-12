@@ -307,7 +307,6 @@ class NT8Client:
         quantity: Optional[int] = None,
         limit_price: Optional[float] = None,
         stop_price: Optional[float] = None,
-        oco_id: str = "",
     ) -> bool:
         """Modify an existing order."""
         # ATI Format: CHANGE;;;;<QUANTITY>;;<LIMIT PRICE>;<STOP PRICE>;;;<ORDER ID>;;
@@ -321,7 +320,7 @@ class NT8Client:
             limit_price if limit_price is not None else "",
             stop_price if stop_price is not None else "",
             "",  # time_in_force
-            oco_id,  # oco_id
+            "",  # oco_id
             order_id,
             "",  # strategy
             ""   # strategy_id
@@ -532,10 +531,28 @@ class NT8Client:
         if len(payload) < 3:
             raise RuntimeError(f"Invalid market data format: {response}")
 
-        bid = float(payload[0]) if payload[0] else 0.0
-        ask = float(payload[1]) if len(payload) > 1 and payload[1] else 0.0
-        last = float(payload[2]) if len(payload) > 2 and payload[2] else 0.0
-        volume = float(payload[3]) if len(payload) > 3 and payload[3] else 0.0
+        # Helper to safely parse float, skipping timestamp-like strings
+        def safe_float(val: str) -> float:
+            if not val:
+                return 0.0
+            # Skip if it looks like a timestamp (contains ':')
+            if ':' in val:
+                return 0.0
+            try:
+                return float(val)
+            except ValueError:
+                return 0.0
+
+        # Find the actual price fields by skipping any timestamp-like values
+        price_values = []
+        for p in payload:
+            if ':' not in p:  # Skip timestamps
+                price_values.append(p)
+
+        bid = safe_float(price_values[0]) if len(price_values) > 0 else 0.0
+        ask = safe_float(price_values[1]) if len(price_values) > 1 else 0.0
+        last = safe_float(price_values[2]) if len(price_values) > 2 else 0.0
+        volume = safe_float(price_values[3]) if len(price_values) > 3 else 0.0
         timestamp = datetime.now().isoformat(timespec="milliseconds")
 
         data = {

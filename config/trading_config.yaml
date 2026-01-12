@@ -162,6 +162,100 @@ risk_management:
   # Use Monte Carlo optimized position sizing
   use_mc_sizing: true
 
+# Bracket Order Management
+bracket_orders:
+  # OCO (One-Cancels-Other) mode:
+  # - true: Use NT8 OCO - NT8 auto-cancels other order when one fills
+  # - false: Bot manually cancels other order when one fills/cancels
+  oco_enabled: false
+
+# Limit Order Settings
+limit_orders:
+  # Timeout in seconds for unfilled limit orders (default: 300 = 5 minutes)
+  # Set to 0 to disable timeout (orders will persist until filled or manually cancelled)
+  timeout_seconds: 300
+  
+  # Offset from current price for limit orders (in points)
+  # Symbol-specific offsets (GC/MGC use 2.5, others use 1.5)
+  default_offset: 2.5
+  default_offset_other: 1.5
+  
+  # Whether to use limit orders by default
+  use_limit_orders: true
+
+# Position Management Settings
+position_management:
+  # Maximum hold time in seconds before forced exit (default: 300 = 5 minutes)
+  max_hold_seconds: 300
+  
+  # Seconds to hold position before allowing breakeven move
+  hold_secs_before_breakeven: 60.0
+  
+  # Seconds profit must be sustained before breakeven move
+  sustain_secs_before_breakeven: 15.0
+  
+  # Stale P&L timeout - close if P&L hasn't changed in this many seconds
+  stale_pnl_timeout_seconds: 180
+  
+  # Minimum $ change to consider P&L as "moved" (avoid noise)
+  pnl_change_threshold: 0.50
+
+# Stop Loss / Take Profit Settings
+sl_tp:
+  # Default stop loss in points
+  stop_loss_points: 30.0
+  
+  # Default take profit in points
+  take_profit_points: 40.0
+  
+  # Minimum risk/reward ratio required
+  min_risk_reward_ratio: 1.0
+
+# Trading Parameters
+trading_parameters:
+  # Default quantity per trade
+  default_quantity: 1
+  
+  # ADX threshold for ranging market classification
+  adx_ranging_threshold: 20.0
+  
+  # Maximum consecutive losses before halting trading
+  consecutive_loss_limit: 3
+  
+  # Minimum seconds between trade entries
+  min_seconds_between_entries: 5
+  
+  # Trade interval (seconds between trade checks)
+  trade_interval: 5.0
+
+# Reversal Detection Settings
+reversal_detection:
+  # Enable flip on reversal (use NT8 reverse_position)
+  flip_on_reversal: false
+  
+  # Maximum number of flips allowed per original position
+  max_flips_per_position: 1
+  
+  # Number of consecutive signals required to signal a reversal
+  mark: 5
+  
+  # Minimum seconds to hold position before allowing reversals
+  min_position_hold_seconds: 60
+  
+  # Allow early exit if profit >= this many points
+  min_profit_for_early_exit: 2.0
+
+# Loop Intervals (seconds)
+loop_intervals:
+  # Signal generation loop interval
+  signal_loop: 1.0
+  
+  # Trading/execution loop interval  
+  trading_loop: 0.5
+  
+  # Position monitoring loop interval
+  monitoring_loop: 1.0
+
 # Logging & Monitoring
 logging:
   # Log level: DEBUG, INFO, WARNING, ERROR
@@ -189,3 +283,62 @@ debug:
   
   # Save regime history
   save_regime_history: true
+
+# =============================================================================
+# ADAPTIVE POSITION PROTECTION
+# =============================================================================
+# Dynamic breakeven triggers, trailing stops, and Running TP that scale based
+# on trend strength (smoothed ADX) and instrument volatility (rolling ATR).
+# Positions in strong trends get significantly more breathing room.
+#
+# Formula for BE trigger:
+#   adaptive_trigger = base_trigger * (1 + smoothed_adx / adx_be_divisor) * (current_atr / rolling_avg_atr)
+#
+# Formula for hold time:
+#   adaptive_hold = base_hold * (1 + smoothed_adx / adx_hold_divisor) * (current_atr / rolling_avg_atr)
+#
+# Formula for trail distance:
+#   adaptive_trail = max(min_trail, current_atr * (base_multiplier + smoothed_adx / adx_trail_divisor))
+#
+# Formula for Running TP offset:
+#   adaptive_offset = base_offset * (1 + smoothed_adx / adx_running_tp_divisor)
+# =============================================================================
+
+adaptive_protection:
+  # Enable/disable adaptive protection (if disabled, uses fixed values)
+  enabled: true
+  
+  # ADX divisors (higher = less aggressive scaling)
+  adx_be_divisor: 50              # BE trigger scaling: 1 + ADX/50 (ADX 50 = 2x trigger)
+  adx_hold_divisor: 100           # Hold time scaling: 1 + ADX/100 (ADX 50 = 1.5x hold)
+  adx_trail_divisor: 100          # Trail distance scaling: base + ADX/100 (ADX 50 = +0.5x ATR)
+  adx_running_tp_divisor: 50      # Running TP offset scaling: 1 + ADX/50 (ADX 50 = 2x offset)
+  
+  # Rolling average periods
+  atr_rolling_period: 14          # Number of ATR values to average
+  adx_smoothing_period: 3         # EMA periods for ADX smoothing
+  
+  # Warmup behavior (before rolling averages stabilize)
+  warmup_conservative_multiplier: 1.5  # Multiply base values by this during warmup
+  
+  # S/R buffer for Running TP (when stop would pass S/R level)
+  sr_buffer_points: 0.5           # Place stop this many points before S/R
+  
+  # ADX Trend Classification Thresholds:
+  # < 20: WEAK (no clear trend, ranging market)
+  # 20-30: MODERATE (trend developing)
+  # 30-50: STRONG (established, tradeable trend)
+  # 50-70: VERY_STRONG (powerful momentum)
+  # > 70: EXTREME (rare, often signals exhaustion)
+  weak_trend_adx_threshold: 20      # ADX below this = weak/no trend
+  moderate_trend_adx_threshold: 30  # ADX above this = moderate/developing trend
+  strong_trend_adx_threshold: 50    # ADX above this = strong established trend
+  very_strong_trend_adx_threshold: 70  # ADX above this = very strong/extreme trend
+  
+  # BE rejection cooldown (prevents rapid retry spam after rejection)
+  be_rejection_cooldown_secs: 5.0    # Seconds to wait after BE rejection before retrying
+  
+  # Dynamic stop buffer (prevents rejection when market moves during order placement)
+  # Buffer = max(tick_size * be_min_stop_buffer_ticks, current_atr * be_atr_buffer_multiplier)
+  be_min_stop_buffer_ticks: 3       # Minimum buffer in ticks when ATR unavailable
+  be_atr_buffer_multiplier: 0.1     # ATR multiplier for dynamic buffer

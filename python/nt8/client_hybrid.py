@@ -279,14 +279,13 @@ class NT8HybridClient:
         quantity: int | None = None,
         limit_price: float | None = None,
         stop_price: float | None = None,
-        oco_id: str = "",
     ) -> bool:
         """Modify order via FileBased client with DLL as fallback."""
         try:
-            return self._file_client.modify_order(order_id, quantity, limit_price, stop_price, oco_id)
+            return self._file_client.modify_order(order_id, quantity, limit_price, stop_price)
         except Exception as e:
             logger.warning(f"File-based modify_order failed: {e}, using DLL fallback")
-            return self._dll_client.modify_order(order_id, quantity, limit_price, stop_price, oco_id)
+            return self._dll_client.modify_order(order_id, quantity, limit_price, stop_price)
 
 
     def get_order_status(self, order_id: str) -> str:
