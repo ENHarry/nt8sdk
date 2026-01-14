@@ -67,6 +67,12 @@ ranging_signals:
     oversold: 30
     overbought: 70
   
+  # ADX/DI parameters
+  adx_di:
+    period: 7                    # ADX/DI calculation period (try 7 or 14)
+    adx_threshold: 25.0           # ADX threshold for trend detection
+    di_min_threshold: 19.0        # Minimum DI value for entry confirmation
+  
   # Range detection parameters
   range_detection:
     lookback_bars: 50
@@ -119,10 +125,10 @@ htf_filter:
   enabled: true
   
   # Primary HTF timeframe to use
-  primary_timeframe: "5m"
+  primary_timeframe: "1m"
   
   # Fallback if primary not available
-  fallback_timeframe: "1m"
+  fallback_timeframe: "5m"
   
   # Minimum bars required for HTF analysis
   min_bars: 15
@@ -342,3 +348,82 @@ adaptive_protection:
   # Buffer = max(tick_size * be_min_stop_buffer_ticks, current_atr * be_atr_buffer_multiplier)
   be_min_stop_buffer_ticks: 3       # Minimum buffer in ticks when ATR unavailable
   be_atr_buffer_multiplier: 0.1     # ATR multiplier for dynamic buffer
+# =============================================================================
+# HISTORICAL DATA SETTINGS
+# =============================================================================
+# Control whether historical data files are loaded for indicator warmup.
+# When disabled, the bot uses ONLY live data from NT8 (more accurate but slower warmup).
+
+# =============================================================================
+# NT8 NATIVE INDICATORS
+# =============================================================================
+# Use indicator values directly from NinjaTrader 8 (calculated by the strategy)
+# instead of recalculating with TA-Lib in Python. This ensures perfect accuracy
+# and lowest latency since NT8 indicators are pre-calculated.
+
+nt8_indicators:
+  # Enable/disable NT8 native indicator integration
+  enabled: true
+  
+  # When true, skips the warmup period since NT8 provides pre-warmed indicators
+  bypass_warmup: true
+  
+  # TCP port for streaming indicators (used by NTPythonIndicatorExporter strategy)
+  tcp_port: 50005
+  
+  # Fall back to file-based reading if TCP is not available
+  fallback_to_file: true
+  
+  # Primary indicator file location (relative to Documents folder)
+  primary_file: "NT8_Python_Data/nt8_indicators.csv"
+
+historical_data:
+  # Enable/disable loading historical data from files
+  # When false: Uses only live NT8 data, warmup extends to 15 minutes
+  # When true: Uses historical files for fast indicator warmup
+  use_historical_data: true  # Set to false for most accurate live indicators
+  
+  # Maximum historical bars to load (limits lookback for indicator calculation)
+  # 60 bars is sufficient for all indicators (ADX=14, MACD=26+9, RSI=14)
+  # Set to 0 or null to load all available historical data
+  max_historical_bars: 60
+  
+  # Maximum age of historical data in minutes before it's considered stale
+  # If the most recent historical bar is older than this, historical data is skipped
+  # and the bot will use live-only mode with extended warmup
+  max_historical_age_minutes: 10
+  
+  # Warmup period when historical data is disabled (seconds)
+  # 15 minutes (900s) allows accumulation of ~15 1-min bars for basic indicators
+  live_only_warmup_seconds: 900
+  
+  # Warmup period when historical data is enabled (seconds)
+  # Shorter since indicators can warm up from historical data
+  with_historical_warmup_seconds: 60
+
+# =============================================================================
+# PLAYBACK MODE SETTINGS
+# =============================================================================
+# NT8 Playback streams historical data but doesn't provide the playback timestamp.
+# The bot must know the playback start date/time to filter historical data properly.
+# Without this, indicators will be calculated on "future" data and be incorrect.
+
+playback:
+  # Manual playback start date/time (required for playback mode)
+  # Format: "YYYY-MM-DD HH:MM" in ET timezone
+  # Set this to match your NT8 playback start position
+  # Example: "2026-01-01 00:00" for Jan 1, 2026 at 12:00 AM ET
+  start_datetime: "2026-01-05 00:00"  # Set to null to auto-detect (may be unreliable)
+  
+  # Auto-detection method (when start_datetime is null):
+  # - "price_match": Try to match live prices to historical data timestamps
+  # - "none": Don't auto-detect, use system time (WARNING: will be wrong)
+  auto_detect_method: "price_match"
+  
+  # Price tolerance for auto-detection (how close prices must match)
+  price_match_tolerance: 0.5  # Points difference allowed
+  
+  # Fallback behavior if auto-detect fails
+  # - "warn_and_continue": Log warning, use historical data as-is (may be wrong)
+  # - "purge_historical": Discard all historical data, start fresh with live bars
+  auto_detect_fallback: "purge_historical"

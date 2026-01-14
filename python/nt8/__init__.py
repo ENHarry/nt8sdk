@@ -35,6 +35,7 @@ from .risk_management import (
     points_to_dollars
 )
 from .advanced_strategy import BreakevenConfig, BreakevenManager, AdvancedStrategy
+from .indicator_client import NT8IndicatorClient
 
 __version__ = "1.1.0"
 __all__ = [
@@ -43,6 +44,7 @@ __all__ = [
     'NT8ManagedClient',
     'NT8HybridClient',
     'NT8FileClient',
+    'NT8IndicatorClient',
 
     # Types and enums
     'OrderAction', 'OrderType', 'OrderState', 'MarketDataType',

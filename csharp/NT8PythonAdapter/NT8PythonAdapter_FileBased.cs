@@ -12,6 +12,9 @@ using System.Globalization;
 using System.Collections.Concurrent;
 using System.Reflection;
 using System.Threading;
+using System.Net;
+using System.Net.Sockets;
+using System.Threading.Tasks;
 #endregion
 
 namespace NinjaTrader.NinjaScript.AddOns
@@ -57,11 +60,21 @@ namespace NinjaTrader.NinjaScript.AddOns
     {
         #region Fields
 
+        // Singleton for Strategies to access
+        public static NT8PythonAdapter Instance { get; private set; }
+
+        // TCP Server Fields
+        private TcpListener tcpListener;
+        private List<TcpClient> tcpClients = new List<TcpClient>();
+        private object tcpLock = new object();
+        private bool isTcpRunning = false;
+        private const int TCP_PORT = 50005;
+
         private FileSystemWatcher incomingWatcher;
-    private string incomingDir;
-    private string outgoingDir;
-    private string incomingBaseDir;
-    private string outgoingBaseDir;
+        private string incomingDir;
+        private string outgoingDir;
+        private string incomingBaseDir;
+        private string outgoingBaseDir;
         
         private Account tradingAccount;
         private long commandsProcessed;
@@ -96,6 +109,8 @@ namespace NinjaTrader.NinjaScript.AddOns
             }
             else if (State == State.Configure)
             {
+                Instance = this; // Set Singleton
+
                 startTime = DateTime.Now;
                 commandsProcessed = 0;
 
@@ -121,6 +136,9 @@ namespace NinjaTrader.NinjaScript.AddOns
 
                 // Start file monitoring
                 StartFileMonitoring();
+                
+                // Start TCP Server
+                StartTcpServer();
 
                 // Set up breakeven monitoring timer (check every 100ms)
                 breakevenTimer = new System.Threading.Timer(MonitorBreakevens, null, 100, 100);
@@ -226,6 +244,92 @@ namespace NinjaTrader.NinjaScript.AddOns
                 return false;
 
             return true;
+        }
+
+        #endregion
+
+        #region TCP Server
+
+        private void StartTcpServer()
+        {
+            try 
+            {
+                tcpListener = new TcpListener(IPAddress.Any, TCP_PORT);
+                tcpListener.Start();
+                isTcpRunning = true;
+                Print("TCP Indicator Server started on port " + TCP_PORT);
+                
+                // Async Accept Loop
+                Task.Run(async () => 
+                {
+                        while(isTcpRunning)
+                        {
+                            try 
+                            {
+                                var client = await tcpListener.AcceptTcpClientAsync();
+                                lock(tcpLock) 
+                                {
+                                    tcpClients.Add(client);
+                                }
+                                Print("New Python Client Connected via TCP: " + ((IPEndPoint)client.Client.RemoteEndPoint).ToString());
+                            }
+                            catch { if(!isTcpRunning) break; }
+                        }
+                });
+            }
+            catch (Exception ex)
+            {
+                Print("Failed to start TCP Server: " + ex.Message);
+            }
+        }
+
+        public void StopTcpServer()
+        {
+            isTcpRunning = false;
+            try 
+            {
+                if (tcpListener != null) tcpListener.Stop();
+            } catch {}
+            
+            lock(tcpLock)
+            {
+                foreach(var c in tcpClients) c.Close();
+                tcpClients.Clear();
+            }
+        }
+
+        public void PublishIndicatorData(string data)
+        {
+            if (!isTcpRunning) return;
+            
+            lock(tcpLock)
+            {
+                // Clean up disconnected clients
+                for (int i = tcpClients.Count - 1; i >= 0; i--)
+                {
+                    if (!tcpClients[i].Connected)
+                    {
+                        tcpClients.RemoveAt(i);
+                    }
+                }
+
+                if (tcpClients.Count == 0) return;
+
+                byte[] bytes = Encoding.ASCII.GetBytes(data + "\n");
+
+                // Send to all active clients
+                foreach(var client in tcpClients)
+                {
+                    try 
+                    {
+                            client.GetStream().Write(bytes, 0, bytes.Length);
+                    }
+                    catch 
+                    {
+                            // Disconnected, will be cleaned up next pass
+                    }
+                }
+            }
         }
 
         #endregion
@@ -1432,6 +1536,9 @@ namespace NinjaTrader.NinjaScript.AddOns
         {
             try
             {
+                StopTcpServer();
+                Instance = null;
+
                 if (breakevenTimer != null)
                 {
                     breakevenTimer.Dispose();
