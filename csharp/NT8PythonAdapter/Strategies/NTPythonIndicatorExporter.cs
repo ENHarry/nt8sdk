@@ -159,7 +159,8 @@ namespace NinjaTrader.NinjaScript.Strategies
                     if (!Directory.Exists(outgoingPythonDir))
                         Directory.CreateDirectory(outgoingPythonDir);
                     
-                    outputPath = Path.Combine(outgoingPythonDir, "indicator_data.txt");
+                    // Set output file path by instrument
+                    outputPath = Path.Combine(outgoingPythonDir, $"{Instrument.FullName}_indicator_data.txt");
                     
                     Print($"🚀 Indicator Exporter initialized");
                     Print($"   Output Directory: {outgoingPythonDir}");
@@ -454,8 +455,8 @@ namespace NinjaTrader.NinjaScript.Strategies
                 {
                     try
                     {
-                        string tempPath = Path.Combine(outgoingPythonDir, "indicator_data.tmp");
-                        string finalPath = Path.Combine(outgoingPythonDir, "indicator_data.txt");
+                        string tempPath = Path.Combine(outgoingPythonDir, $"{Instrument.FullName}_indicator_data.tmp");
+                        string finalPath = Path.Combine(outgoingPythonDir, $"{Instrument.FullName}_indicator_data.txt");
                         
                         // Updated header with S/R levels
                         string header = "Time,Open,High,Low,Close,Volume,RSI,MACD,MACD_Signal,MACD_Hist,StochK,StochD,ADX,DI_Plus,DI_Minus,ATR,BB_Upper,BB_Middle,BB_Lower,HA_Open,HA_High,HA_Low,HA_Close,Trend_Signal,Div_Signal,Liq_High,Liq_Low,RSI_5m,MACD_5m,MACD_Signal_5m,MACD_Hist_5m,Trend_5m,RSI_15m,MACD_15m,MACD_Signal_15m,MACD_Hist_15m,Trend_15m,Session_High,Session_Low,PrevDay_High,PrevDay_Low,PrevDay_Close,Swing_High2,Swing_Low2,Swing_High3,Swing_Low3";
@@ -481,8 +482,8 @@ namespace NinjaTrader.NinjaScript.Strategies
                                 historyBuffer.RemoveAt(0);
                             
                             // Write history file
-                            string historyPath = Path.Combine(outgoingPythonDir, "indicator_history.csv");
-                            string historyTempPath = Path.Combine(outgoingPythonDir, "indicator_history.tmp");
+                            string historyPath = Path.Combine(outgoingPythonDir, $"{Instrument.FullName}_indicator_history.csv");
+                            string historyTempPath = Path.Combine(outgoingPythonDir, $"{Instrument.FullName}_indicator_history.tmp");
                             
                             StringBuilder histSb = new StringBuilder();
                             histSb.AppendLine(header);
