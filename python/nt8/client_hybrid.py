@@ -19,6 +19,9 @@ class NT8HybridClient:
     - File-based interface (NT8Client) for: get_positions, get_orders, L2 market depth, cancel_order, close_position
 
     Each function has a primary implementation with a fallback to the other interface.
+    
+    Set NT8_FORCE_FILE_ORDERS=true env var to use file-based orders exclusively
+    (useful when DLL ATI connection isn't working properly).
     """
 
     def __init__(
@@ -34,8 +37,18 @@ class NT8HybridClient:
         # Shared params
         account: str | None = None,
         auto_connect: bool = True,
+        force_file_orders: bool | None = None,
     ) -> None:
         self.account = account or os.getenv("NT8_ACCOUNT") or "Sim101"
+        
+        # Check if we should force file-based orders (DLL ATI may not work reliably)
+        if force_file_orders is None:
+            self._force_file_orders = os.getenv("NT8_FORCE_FILE_ORDERS", "").lower() in ("true", "1", "yes")
+        else:
+            self._force_file_orders = force_file_orders
+        
+        if self._force_file_orders:
+            logger.info("📋 NT8_FORCE_FILE_ORDERS enabled - all orders will use file-based client")
 
         # Initialize DLL client for orders/positions
         logger.info("Initializing DLL client for orders and positions...")
@@ -153,6 +166,8 @@ class NT8HybridClient:
         IMPORTANT: OCO orders use file-based client to ensure all OCO-linked orders
         go through the same adapter (NT8PythonAdapter_FileBased.cs) which properly
         handles OCO linking via Account.CreateOrder().
+        
+        Set NT8_FORCE_FILE_ORDERS=true to use file-based for ALL orders.
         """
         # Support both tif and time_in_force, and both oco and oco_id
         effective_tif = tif or time_in_force
@@ -165,6 +180,28 @@ class NT8HybridClient:
         ati_order_type = order_type_upper
         if ati_order_type in ("STOP_MARKET", "STOPMKT"):
             ati_order_type = "STOP"
+        elif ati_order_type == "STOP_LIMIT":
+            ati_order_type = "STOPLIMIT"
+        
+        # FORCE FILE-BASED: If enabled, use file-based for ALL orders
+        if self._force_file_orders:
+            logger.debug(f"Using file-based client for {order_type_upper} order (NT8_FORCE_FILE_ORDERS=true)")
+            result = self.place_order_file(
+                instrument=instrument,
+                action=action,
+                quantity=quantity,
+                order_type=ati_order_type,
+                limit_price=limit_price,
+                stop_price=stop_price,
+                tif=effective_tif,
+                oco=effective_oco,
+                order_id=order_id,
+                strategy=strategy,
+                account=account or self.account,
+            )
+            if isinstance(result, str):
+                return {"order_id": result, "strategy_id": ""}
+            return result
         elif ati_order_type == "STOP_LIMIT":
             ati_order_type = "STOPLIMIT"
         
